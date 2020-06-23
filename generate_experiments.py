@@ -55,6 +55,18 @@ for s in range(seeds):
     print(final_call)
     print(final_call, file=output_file)
 
+condition="error_alignment"
+for s in range(seeds):
+    lpath = log_path + "/"+str(exp_name) +"_"+condition + "/" + str(s)
+    spath = save_path + "/" + str(exp_name) +"_"+condition + "/" + str(s)
+    if old_savename != "None":
+        old_savepath = save_path + "/" + str(old_savename) + "/" + str(s)
+    else:
+        old_savepath = "None"
+    final_call = base_call + " --logdir " + str(lpath) + " --savedir " + str(spath) + " --use_error_connections True --update_error_connections False"
+    print(final_call)
+    print(final_call, file=output_file)
+
 condition="full_construct"
 for s in range(seeds):
     lpath = log_path + "/"+str(exp_name) +"_"+condition + "/" + str(s)

@@ -18,7 +18,6 @@ import subprocess
 import argparse
 from datetime import datetime
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 num_batches= 10
 num_train_batches=20
 batch_size = 64
@@ -38,10 +37,10 @@ def get_dataset(batch_size):
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                             shuffle=False, num_workers=1)
     trainset = list(iter(trainloader))
-    testset = list(iter(testloaded))
+    testset = list(iter(testloader))
     for i,(img, label) in enumerate(trainset):
         trainset[i] = (img.reshape(len(img),784) /255 ,label)
-    for i,(img, label) in enumerate(testset):)
+    for i,(img, label) in enumerate(testset):
         testset[i] = (img.reshape(len(img),784) /255 ,label)
     return trainset, testset
 
@@ -175,7 +174,7 @@ class FCLayer(object):
     self.weights = set_tensor(torch.from_numpy(weights))
 
 class PCNet(object):
-  def __init__(self, layers, n_inference_steps_train, inference_learning_rate, weight_learning_rate,use_error_weights=False,device='cpu'):
+  def __init__(self, layers, n_inference_steps_train, inference_learning_rate, weight_learning_rate,use_error_weights=False,update_error_connections=True,device='cpu'):
     self.layers= layers
     self.n_inference_steps_train = n_inference_steps_train
     self.inference_learning_rate = inference_learning_rate
@@ -187,6 +186,7 @@ class PCNet(object):
     self.predictions = [[] for i in range(self.L+1)]
     self.mus = [[] for i in range(self.L+1)]
     self.use_error_weights = use_error_weights
+    self.update_error_connections = update_error_connections
     self.error_weights = []
     for i,l in enumerate(self.layers):
       if self.use_error_weights:
@@ -246,14 +246,14 @@ class PCNet(object):
   def save_model(sef, savedir, logdir, losses,accs,test_accs):
     for i,l in enumerate(self.layers):
         l.save_layer(logdir,i)
-      np.save(logdir +"/losses.npy",np.array(losses))
-      np.save(logdir+"/accs.npy",np.array(accs))
-      np.save(logdir+"/test_accs.npy",np.array(test_accs))
-      subprocess.call(['rsync','--archive','--update','--compress','--progress',str(logdir) +"/",str(savedir)])
-      print("Rsynced files from: " + str(logdir) + "/ " + " to" + str(savedir))
-      now = datetime.now()
-      current_time = str(now.strftime("%H:%M:%S"))
-      subprocess.call(['echo','saved at time: ' + str(current_time)])
+    np.save(logdir +"/losses.npy",np.array(losses))
+    np.save(logdir+"/accs.npy",np.array(accs))
+    np.save(logdir+"/test_accs.npy",np.array(test_accs))
+    subprocess.call(['rsync','--archive','--update','--compress','--progress',str(logdir) +"/",str(savedir)])
+    print("Rsynced files from: " + str(logdir) + "/ " + " to" + str(savedir))
+    now = datetime.now()
+    current_time = str(now.strftime("%H:%M:%S"))
+    subprocess.call(['echo','saved at time: ' + str(current_time)])
 
 
   def infer(self, inp,label,n_inference_steps=None):
@@ -281,7 +281,7 @@ class PCNet(object):
         #  self.update_error_weights()
 
       weight_diffs = self.update_weights()
-      if self.use_error_weights:
+      if self.use_error_weights and self.update_error_connections:
         self.update_error_weights()
       L = torch.sum(self.prediction_errors[-1]**2).item()
       acc = accuracy(self.no_grad_forward(inp),label)
@@ -296,7 +296,7 @@ class PCNet(object):
             losslist = []
             acclist = []
             print("Epoch: ", epoch)
-            for i,(inp, label) in enumerate(dataset):
+            for i,(inp, label) in enumerate(trainset):
                 L, acc,weight_diffs = self.infer(inp.to(DEVICE),onehot(label).to(DEVICE))
                 print("Epoch: " + str(epoch) + " batch: " + str(i))
                 print("Loss: ", L)
@@ -333,7 +333,7 @@ if __name__ == '__main__':
     parser.add_argument("--use_backwards_weights",type=boolcheck, default=False)
     parser.add_argument("--use_backwards_nonlinearities",type=boolcheck, default=True)
     parser.add_argument("--use_error_connections",type=boolcheck,default=False)
-
+    parser.add_argument("--update_error_connections",type=boolcheck,default=True)
     args = parser.parse_args()
     print("Args parsed")
     #create folders
@@ -343,9 +343,9 @@ if __name__ == '__main__':
         subprocess.call(["mkdir","-p",str(args.logdir)])
     print("folders created")
     trainset,testset = get_dataset(args.batch_size)
-    l1 = FCLayer(784,300,64,lr,tanh,tanh_deriv,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,device=DEVICE)
-    l2 = FCLayer(300,100,64,lr,tanh,tanh_deriv,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,device=DEVICE)
-    l3 = FCLayer(100,10,64,lr,tanh,linear_deriv,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,device=DEVICE)
+    l1 = FCLayer(784,300,64,args.learning_rate,tanh,tanh_deriv,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,device=DEVICE)
+    l2 = FCLayer(300,100,64,args.learning_rate,tanh,tanh_deriv,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,device=DEVICE)
+    l3 = FCLayer(100,10,64,args.learning_rate,tanh,linear_deriv,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,device=DEVICE)
     layers =[l1,l2,l3]
-    net = PCNet(layers,args.n_inference_steps,args.inference_learning_rate,args.learning_rate,use_error_weights=use_error_weights,device=DEVICE)
+    net = PCNet(layers,args.n_inference_steps,args.inference_learning_rate,args.learning_rate,use_error_weights=args.use_error_connections,update_error_connections =args.update_error_connections, device=DEVICE)
     net.train(trainset[0:-2],testset[0:-2],args.logdir, args.savedir,args.N_epochs, args.n_inference_steps)
