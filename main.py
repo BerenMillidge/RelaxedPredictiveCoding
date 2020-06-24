@@ -245,7 +245,7 @@ class PCNet(object):
         x = l.forward(x)
       return x
 
-  def save_model(sef, savedir, logdir, losses,accs,test_accs):
+  def save_model(self, savedir, logdir, losses,accs,test_accs):
     for i,l in enumerate(self.layers):
         l.save_layer(logdir,i)
     np.save(logdir +"/losses.npy",np.array(losses))
