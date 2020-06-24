@@ -31,13 +31,14 @@ def get_dataset(batch_size):
                                             download=False, transform=transform)
     print("trainset: ", trainset)
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                            shuffle=True, num_workers=1)
+                                            shuffle=True)
+    print("trainloader: ", trainloader)
     trainset = list(iter(trainloader))
 
     testset = torchvision.datasets.MNIST(root='./mnist_data', train=False,
                                         download=False, transform=transform)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
-                                            shuffle=True, num_workers=1)
+                                            shuffle=True)
     testset = list(iter(testloader))
     for i,(img, label) in enumerate(trainset):
         trainset[i] = (img.reshape(len(img),784) /255 ,label)
