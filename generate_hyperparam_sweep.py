@@ -19,4 +19,4 @@ for lr in learning_rates:
                 spath = save_path + "/" + str(exp_name) +"_"+condition + "/" + str(s)
                 final_call = base_call + " --logdir " + str(lpath) + " --savedir " + str(spath) + " --learning_rate " + str(lr) + " --inference_learning_rate " + str(inference_lr) + " --n_inference_steps" + str(n_steps) + " --use_error_connections True"
                 print(final_call)
-                print(final_call, file=output_fil
+                print(final_call, file=output_file)
