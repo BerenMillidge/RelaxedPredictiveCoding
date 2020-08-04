@@ -117,7 +117,7 @@ class FCLayer(object):
     self.weight_normalization = weight_normalization
     self.weights = torch.empty([self.input_size,self.output_size]).normal_(mean=0.0,std=0.05).to(self.device)
     self.use_bias = use_bias
-    self.bias = torch.zeros([self.batch_size, self.output_size])
+    self.bias = torch.zeros([self.batch_size, self.output_size]).to(self.device)
     if self.use_backwards_weights:
       self.backward_weights = torch.empty([self.output_size,self.input_size]).normal_(mean=0.0,std=0.05).to(self.device)
 
