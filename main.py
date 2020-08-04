@@ -464,7 +464,7 @@ if __name__ == '__main__':
     parser.add_argument("--dataset",type=str,default="mnist")
     parser.add_argument("--use_backwards_weights",type=boolcheck, default=False)
     parser.add_argument("--use_backwards_nonlinearities",type=boolcheck, default=True)
-    parser.add_argument("--use_error_weights",type=boolcheck,default=True)
+    parser.add_argument("--use_error_weights",type=boolcheck,default=False)
     parser.add_argument("--update_error_weights",type=boolcheck,default=True)
     parser.add_argument("--enforce_negative_errors",type=boolcheck,default=True)
     parser.add_argument("--with_amortisation",type=boolcheck,default=True)
