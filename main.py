@@ -436,13 +436,17 @@ class PCNet(object):
       test_accs = []
       for epoch in range(n_epochs):
         print("Epoch: ", epoch)
+        losslist = []
+        acclist = []
         for i,(inp, label) in enumerate(trainset):
           L, acc,weight_diffs = self.learn_pc(inp.to(DEVICE),onehot(label).to(DEVICE))
           print("Epoch: " + str(epoch) + " batch: " + str(i))
           print("Loss: ", L)
           print("Acc: ", acc)
-          losses.append(L)
-          accs.append(acc)
+          losslist.append(L)
+          acclist.append(acc)
+        losses.append(np.mean(np.array(losslist)))
+        accs.append(np.mean(np.array(acclist)))
         
         mean_test_acc, _ = self.test_accuracy(testset)
         test_accs.append(mean_test_acc)
@@ -461,8 +465,8 @@ if __name__ == '__main__':
     parser.add_argument("--savedir",type=str,default="savedir")
     parser.add_argument("--batch_size",type=int, default=64)
     parser.add_argument("--norm_factor",type=int,default=1)
-    parser.add_argument("--learning_rate",type=float,default=0.001)
-    parser.add_argument("--N_epochs",type=int, default=10)
+    parser.add_argument("--learning_rate",type=float,default=0.0005)
+    parser.add_argument("--N_epochs",type=int, default=30)
     parser.add_argument("--save_every",type=int, default=1)
     parser.add_argument("--old_savedir",type=str,default="None")
     parser.add_argument("--n_inference_steps",type=int,default=500)
