@@ -156,13 +156,13 @@ class FCLayer(object):
   def update_weights(self,e,update_weights=False):
     self.fn_deriv = self.df(self.activations)
     if self.use_backwards_weights:
-        delta = torch.matmul((e * self.fn_deriv).T,self.inp)
-        dw = torch.matmul(self.inp.T, e * self.fn_deriv)
+      delta = torch.matmul((e * self.fn_deriv).T,self.inp)
+      dw = torch.matmul(self.inp.T, e * self.fn_deriv)
       if update_weights:
         self.weights += self.learning_rate * torch.clamp(dw*2,-50,50)
         self.backward_weights += self.learning_rate * torch.clamp(delta*2,-50,50)
     else:
-        dw = torch.matmul(self.inp.T, e * self.fn_deriv)
+      dw = torch.matmul(self.inp.T, e * self.fn_deriv)
       if update_weights:
         dW  = torch.clamp(dw*2,-50,50)
         self.weights += (self.learning_rate * (dW ))#- torch.mean(dW))) #- (torch.mean(torch.abs(dw)) * self.weights)#(self.weight_decay_coeff * self.weights)
