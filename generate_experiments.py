@@ -7,7 +7,7 @@ exp_name = str(sys.argv[4])
 base_call = "python main.py"
 output_file = open(generated_name, "w")
 seeds = 5
-condition="default"
+"""condition="default"
 for s in range(seeds):
     lpath = log_path + "/"+str(exp_name) +"_"+condition + "/" + str(s)
     spath = save_path + "/" + str(exp_name) +"_"+condition + "/" + str(s)
@@ -22,6 +22,7 @@ for s in range(seeds):
     final_call = base_call + " --logdir " + str(lpath) + " --savedir " + str(spath) + " --use_backwards_weights True"
     print(final_call)
     print(final_call, file=output_file)
+"""
 
 condition="feedback_alignment"
 for s in range(seeds):
@@ -30,7 +31,7 @@ for s in range(seeds):
     final_call = base_call + " --logdir " + str(lpath) + " --savedir " + str(spath) + " --use_backwards_weights True --update_backwards_weights False"
     print(final_call)
     print(final_call, file=output_file)
-
+"""
 condition="no_nonlinearities"
 for s in range(seeds):
     lpath = log_path + "/"+str(exp_name) +"_"+condition + "/" + str(s)
@@ -78,4 +79,4 @@ for s in range(seeds):
     spath = save_path + "/" + str(exp_name) +"_"+condition + "/" + str(s)
     final_call = base_call + " --logdir " + str(lpath) + " --savedir " + str(spath) + " --use_backwards_nonlinearities False --activation_function sigmoid"
     print(final_call)
-    print(final_call, file=output_file)
+    print(final_call, file=output_file)"""
