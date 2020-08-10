@@ -23,6 +23,14 @@ for s in range(seeds):
     print(final_call)
     print(final_call, file=output_file)
 
+condition="feedback_alignment"
+for s in range(seeds):
+    lpath = log_path + "/"+str(exp_name) +"_"+condition + "/" + str(s)
+    spath = save_path + "/" + str(exp_name) +"_"+condition + "/" + str(s)
+    final_call = base_call + " --logdir " + str(lpath) + " --savedir " + str(spath) + " --use_backwards_weights True --update_backwards_weights False"
+    print(final_call)
+    print(final_call, file=output_file)
+
 condition="no_nonlinearities"
 for s in range(seeds):
     lpath = log_path + "/"+str(exp_name) +"_"+condition + "/" + str(s)

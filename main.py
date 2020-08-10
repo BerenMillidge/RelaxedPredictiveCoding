@@ -153,9 +153,9 @@ class FCLayer(object):
         out = torch.matmul(e, self.weights.T)
     return torch.clamp(out,-50,50)
 
-  def update_weights(self,e,update_weights=False):
+  def update_weights(self,e,update_weights=False,update_backwards_weights=True):
     self.fn_deriv = self.df(self.activations)
-    if self.use_backwards_weights:
+    if self.use_backwards_weights and update_backwards_weights:
       delta = torch.matmul((e * self.fn_deriv).T,self.inp)
       dw = torch.matmul(self.inp.T, e * self.fn_deriv)
       if update_weights:
@@ -181,7 +181,7 @@ class FCLayer(object):
     self.weights = nn.Parameter(self.weights)
 
 class PCNet(object):
-  def __init__(self, layers, n_inference_steps_train, inference_learning_rate, weight_learning_rate,use_error_weights=False,with_amortisation=True, fixed_predictions=True, dynamical_weight_update=False, dilation_factor=20,enforce_negative_errors=False,error_weight_std=0.05,update_error_weights=True,device='cpu'):
+  def __init__(self, layers, n_inference_steps_train, inference_learning_rate, weight_learning_rate,use_error_weights=False,with_amortisation=True, fixed_predictions=True, dynamical_weight_update=False, dilation_factor=20,enforce_negative_errors=False,error_weight_std=0.05,update_error_weights=True,update_backwards_weights=True,device='cpu'):
     self.layers= layers
     self.n_inference_steps_train = n_inference_steps_train
     self.inference_learning_rate = inference_learning_rate
@@ -194,6 +194,7 @@ class PCNet(object):
     self.enforce_negative_errors = enforce_negative_errors
     self.error_weight_std = error_weight_std
     self.update_error_weights_flag = update_error_weights
+    self.update_backwards_weights = update_backwards_weights
     self.L = len(self.layers)
     self.outs = [[] for i in  range(self.L+1)]
     self.prediction_errors = [[] for i in range(self.L+1)]
@@ -235,7 +236,7 @@ class PCNet(object):
   def update_weights(self,print_weight_grads=True,get_errors=False):
     weight_diffs = []
     for (i,l) in enumerate(self.layers):
-      dW = l.update_weights(self.prediction_errors[i+1],update_weights=True)
+      dW = l.update_weights(self.prediction_errors[i+1],update_weights=True,update_backwards_weights = self.update_backwards_weights)
       #true_dW = l.update_weights(self.predictions[i+1],update_weights=True)
       #print(dW.shape)
       #print("dW: ", dW*2)
@@ -474,6 +475,7 @@ if __name__ == '__main__':
     parser.add_argument("--dataset",type=str,default="mnist")
     parser.add_argument("--use_backwards_weights",type=boolcheck, default=False)
     parser.add_argument("--use_backwards_nonlinearities",type=boolcheck, default=True)
+    parser.add_argument("--update_backwards_weights",type=boolcheck,default=True)
     parser.add_argument("--use_error_weights",type=boolcheck,default=False)
     parser.add_argument("--update_error_weights",type=boolcheck,default=True)
     parser.add_argument("--enforce_negative_errors",type=boolcheck,default=True)
@@ -502,5 +504,5 @@ if __name__ == '__main__':
     l3 = FCLayer(100,100,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
     l4 = FCLayer(100,10,args.batch_size,args.learning_rate,linear,linear_deriv,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
     layers =[l1,l2,l3,l4]
-    net = PCNet(layers,args.n_inference_steps,args.inference_learning_rate,args.learning_rate,use_error_weights=args.use_error_weights,with_amortisation=args.with_amortisation, fixed_predictions=args.fixed_predictions,dynamical_weight_update=args.dynamical_weight_update,update_error_weights=args.update_error_weights,enforce_negative_errors=args.enforce_negative_errors,device=DEVICE)
+    net = PCNet(layers,args.n_inference_steps,args.inference_learning_rate,args.learning_rate,use_error_weights=args.use_error_weights,with_amortisation=args.with_amortisation, fixed_predictions=args.fixed_predictions,dynamical_weight_update=args.dynamical_weight_update,update_error_weights=args.update_error_weights,enforce_negative_errors=args.enforce_negative_errors,update_backwards_weights = args.update_backwards_weights,device=DEVICE)
     net.train(trainset[0:-2],testset[0:-2],args.logdir, args.savedir, args.N_epochs, args.n_inference_steps)
