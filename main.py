@@ -506,7 +506,6 @@ if __name__ == '__main__':
     parser.add_argument("--weight_normalization",type=boolcheck,default=False)
     parser.add_argument("--use_bias",type=boolcheck,default=True)
     parser.add_argument("--activation_function",type=str,default="relu")
-    parser.add_argument("--dataset",type=str, default="mnist")
     args = parser.parse_args()
     print("Args parsed")
     #create folders
