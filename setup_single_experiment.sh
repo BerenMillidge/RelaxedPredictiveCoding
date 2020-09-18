@@ -45,16 +45,22 @@ echo "Moving input data to the compute node's scratch space: $SCRATCH_DISK"
 # input data directory path on the DFS
 repo_home=/home/${USER}/RelaxedPredictiveCoding
 mnist_path=${repo_home}/mnist_data
+fashion_path=${repo_home}/fashion_data
 #src_path=${repo_home}/experiments/examples/mnist/data/input
 
 # input data directory path on the scratch disk of the node
 mnist_dest_path=${SCRATCH_DISK}/${USER}/mnist_data
 mkdir -p ${mnist_dest_path}  # make it if required
+fashion_dest_path=${SCRATCH_DISK}/${USER}/fashion_data
+mkdir -p ${fashion_dest_path}
+
 
 
 # rsync data across from headnode to compute node
 rsync --archive --update --compress --progress ${mnist_path}/ ${mnist_dest_path}
 echo "Rsynced mnist"
+rsync --archive --update --compress --progress ${fashion_path}/ ${fashion_dest_path}
+echo "Rsynced fashion MNIST"
 
 echo "Running experiment command"
 experiment_text_file=$1

@@ -7,6 +7,8 @@ exp_name = str(sys.argv[4])
 bcall = "python main.py"
 output_file = open(generated_name, "w")
 seeds = 5
+dataset = "fashion"
+bcall += " --dataset " + dataset
 activation_functions = ["relu", "tanh"]
 for act_fn in activation_functions:
     condition = str(act_fn)

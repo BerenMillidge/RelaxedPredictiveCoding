@@ -18,29 +18,49 @@ num_batches= 10
 num_train_batches=20
 batch_size = 64
 
-def get_dataset(batch_size,norm_factor):
-    #currently assuming just MNIST
+
+def get_dataset(batch_size,norm_factor,dataset="mnist"):
     transform = transforms.Compose([transforms.ToTensor()])#, transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+    if dataset == "mnist":
+        trainset = torchvision.datasets.MNIST(root='./mnist_data', train=True,
+                                                download=False, transform=transform)
+        print("trainset: ", trainset)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                                shuffle=True)
+        print("trainloader: ", trainloader)
+        trainset = list(iter(trainloader))
 
-
-    trainset = torchvision.datasets.MNIST(root='./mnist_data', train=True,
+        testset = torchvision.datasets.MNIST(root='./mnist_data', train=False,
                                             download=False, transform=transform)
-    print("trainset: ", trainset)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                            shuffle=False)
-    print("trainloader: ", trainloader)
-    trainset = list(iter(trainloader))
+        testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
+                                                shuffle=True)
+        testset = list(iter(testloader))
+        for i,(img, label) in enumerate(trainset):
+            trainset[i] = (img.reshape(len(img),784) /norm_factor ,label)
+        for i,(img, label) in enumerate(testset):
+            testset[i] = (img.reshape(len(img),784) /norm_factor ,label)
+        return trainset, testset
+    elif dataset == "fashion":
+        trainset = torchvision.datasets.FashionMNIST(root='./fashion_data', train=True,
+                                              download=False, transform=transform)
+        print("trainset: ", trainset)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                                shuffle=False)
+        print("trainloader: ", trainloader)
+        trainset = list(iter(trainloader))
 
-    testset = torchvision.datasets.MNIST(root='./mnist_data', train=False,
-                                        download=True, transform=transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
-                                            shuffle=True)
-    testset = list(iter(testloader))
-    for i,(img, label) in enumerate(trainset):
-        trainset[i] = (img.reshape(len(img),784) /norm_factor ,label)
-    for i,(img, label) in enumerate(testset):
-        testset[i] = (img.reshape(len(img),784) /norm_factor ,label)
-    return trainset, testset
+        testset = torchvision.datasets.FashionMNIST(root='./fashion_data', train=False,
+                                            download=True, transform=transform)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
+                                                shuffle=True)
+        testset = list(iter(testloader))
+        for i,(img, label) in enumerate(trainset):
+            trainset[i] = (img.reshape(len(img),784) /norm_factor ,label)
+        for i,(img, label) in enumerate(testset):
+            testset[i] = (img.reshape(len(img),784) /norm_factor ,label)
+        return trainset, testset
+    else:
+      raise ValueError("Dataset not recognised -- must be mnist, svhn, or fashion")
 
 
 def boolcheck(x):
@@ -486,6 +506,7 @@ if __name__ == '__main__':
     parser.add_argument("--weight_normalization",type=boolcheck,default=False)
     parser.add_argument("--use_bias",type=boolcheck,default=True)
     parser.add_argument("--activation_function",type=str,default="relu")
+    parser.add_argument("--dataset",type=str, default="mnist")
     args = parser.parse_args()
     print("Args parsed")
     #create folders
@@ -494,7 +515,10 @@ if __name__ == '__main__':
     if args.logdir != "":
         subprocess.call(["mkdir","-p",str(args.logdir)])
     print("folders created")
-    trainset,testset = get_dataset(args.batch_size,args.norm_factor)
+    if args.dataset in ["mnist", "fashion"]:
+      trainset,testset = get_dataset(args.batch_size,args.norm_factor,dataset=args.dataset)
+    else:
+      raise ValueError("Dataset not recognised. Must be either mnist or fashion")
     # parse activation functions
     f,df = parse_activation_functions(args.activation_function)
     
