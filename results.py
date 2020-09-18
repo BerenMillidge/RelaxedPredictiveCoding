@@ -79,7 +79,7 @@ def plot_results(pc_path, backprop_path,title,label1,label2,path3="",label3=""):
         frame.set_facecolor("1.0")
         frame.set_edgecolor("1.0")
         fig.tight_layout()
-        fig.savefig("./figures/"+title +"_"+titles[i]+"_prelim_2.jpg")
+        #fig.savefig("./figures/"+title +"_"+titles[i]+"_prelim_2.jpg")
         plt.show()
 
 
@@ -90,7 +90,58 @@ def plot_results(pc_path, backprop_path,title,label1,label2,path3="",label3=""):
 #EPOCH_NUM = 5000
 
 if __name__ == "__main__":
-    basepath = "relaxed_predictive_coding_experiments/"
+    bpath = "relaxed_pc_experiments/act_fn"
+    print("Tanh")
+    basepath = bpath + "_tanh_"
+    default_path = basepath + "default"
+    fa_path = basepath + "feedback_alignment" 
+    error_fa_path = basepath + "error_alignment"
+    learnt_weights = basepath + "backwards_weights"
+    learnt_error_connections = basepath + "error_connections"
+    nonlinearities_path = basepath + "no_nonlinearities"
+    combined_path = basepath + "full_construct"
+
+    # pc vs learnt weights
+    plot_results(default_path,learnt_weights,"With Learnt Backwards Weights", "Standard Predictive Coding", "Learnt Backwards Weights")
+    #pc vs feedback alignment
+    plot_results(default_path,fa_path,"Feedback Alignment", "Standard Predictive Coding", "Feedback Alignment")
+    #error alignment 
+    plot_results(default_path,error_fa_path,"Error alignment", "Standard Predictive Coding", "Error Alignment")
+    #pc vs no nonlinearitiy
+    plot_results(default_path, nonlinearities_path,"Without Backwards Nonlinearity", "Standard Predictive Coding", "Without Nonlinear Derivative")#,path3=fa_path,label3="Feedback Alignment")
+    # error weights
+    plot_results(default_path, learnt_error_connections,"With Full Error Connectivity", "Standard Predictive Coding", "With Error Connections")
+    # Combined
+    plot_results(default_path, combined_path,"Combined Algorithm","Standard Predictive Coding", "Combined Relaxations")
+
+    print("Relu")
+    basepath = bpath +"_relu_"
+    default_path = basepath + "default"
+    fa_path = basepath + "feedback_alignment" 
+    error_fa_path = basepath + "error_alignment"
+    learnt_weights = basepath + "backwards_weights"
+    learnt_error_connections = basepath + "error_connections"
+    nonlinearities_path = basepath + "no_nonlinearities"
+    combined_path = basepath + "full_construct"
+
+
+    # pc vs learnt weights
+    plot_results(default_path,learnt_weights,"With Learnt Backwards Weights", "Standard Predictive Coding", "Learnt Backwards Weights")
+    #pc vs feedback alignment
+    plot_results(default_path,fa_path,"Feedback Alignment", "Standard Predictive Coding", "Feedback Alignment")
+    #error alignment 
+    plot_results(default_path,error_fa_path,"Error alignment", "Standard Predictive Coding", "Error Alignment")
+    #pc vs no nonlinearitiy
+    plot_results(default_path, nonlinearities_path,"Without Backwards Nonlinearity", "Standard Predictive Coding", "Without Nonlinear Derivative")#,path3=fa_path,label3="Feedback Alignment")
+    # error weights
+    plot_results(default_path, learnt_error_connections,"With Full Error Connectivity", "Standard Predictive Coding", "With Error Connections")
+    # Combined
+    plot_results(default_path, combined_path,"Combined Algorithm","Standard Predictive Coding", "Combined Relaxations")
+
+
+
+
+
     #default_path = basepath + "proper_default"
     #fa_path = basepath + "proper_error_alignment"
     #learnt_weights = basepath + "proper_backwards_weights"
@@ -104,18 +155,18 @@ if __name__ == "__main__":
     #learnt_error_connections = basepath + "tanh_error_connections"
     #nonlinearities_path = basepath + "tanh_no_nonlinearities"
     #combined_path = basepath + "tanh_full_construct"
-    print("Real proper!")
-    default_path = basepath + "real_proper_default"
-    fa_path = basepath + "real_proper_error_alignment"
-    learnt_weights = basepath + "real_proper_backwards_weights"
-    learnt_error_connections = basepath + "real_proper_error_connections"
-    nonlinearities_path = basepath + "real_proper_no_nonlinearities"
-    combined_path = basepath + "real_proper_full_construct"
+    #print("Real proper!")
+    #default_path = basepath + "real_proper_default"
+    #fa_path = basepath + "real_proper_error_alignment"
+    #learnt_weights = basepath + "real_proper_backwards_weights"
+    #learnt_error_connections = basepath + "real_proper_error_connections"
+    #nonlinearities_path = basepath + "real_proper_no_nonlinearities"
+    #combined_path = basepath + "real_proper_full_construct"
     # pc vs learnt weights
-    plot_results(default_path,learnt_weights,"With Learnt Backwards Weights", "Standard Predictive Coding", "Learnt Backwards Weights")
+    #plot_results(default_path,learnt_weights,"With Learnt Backwards Weights", "Standard Predictive Coding", "Learnt Backwards Weights")
     #pc vs no nonlinearitiy
-    plot_results(default_path, nonlinearities_path,"Without Backwards Nonlinearity", "Standard Predictive Coding", "Without Nonlinear Derivative")#,path3=fa_path,label3="Feedback Alignment")
+    #plot_results(default_path, nonlinearities_path,"Without Backwards Nonlinearity", "Standard Predictive Coding", "Without Nonlinear Derivative")#,path3=fa_path,label3="Feedback Alignment")
     # error weights
-    plot_results(default_path, learnt_error_connections,"With Full Error Connectivity", "Standard Predictive Coding", "With Error Connections")
+    #plot_results(default_path, learnt_error_connections,"With Full Error Connectivity", "Standard Predictive Coding", "With Error Connections")
     # Combined
-    plot_results(default_path, combined_path,"Combined Algorithm","Standard Predictive Coding", "Combined Relaxations")
+    #plot_results(default_path, combined_path,"Combined Algorithm","Standard Predictive Coding", "Combined Relaxations")
