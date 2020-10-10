@@ -23,8 +23,9 @@ If you find this code useful, please reference as:
 ```
 @article{millidge2020relaxing,
   title={Relaxing the Constraints on Predictive Coding Models},
-  author={Millidge, Beren and Tschantz, Alexander and Buckley, Christopher L and Seth, Anil},
-  journal={arXiv preprint arXiv:2009.05359},
+  author={Millidge, Beren and Tschantz, Alexander and Seth, Anil and Buckley, Christopher L},
+  journal={arXiv preprint arXiv:2010.01047},
   year={2020}
 }
+
 ```
