@@ -150,6 +150,7 @@ class FCLayer(object):
     self.weight_normalization = weight_normalization
     self.weights = torch.empty([self.input_size,self.output_size]).normal_(mean=0.0,std=0.05).to(self.device)
     self.use_bias = use_bias
+    self.weight_clamp_val = 50
     self.bias = torch.zeros([self.batch_size, self.output_size]).to(self.device)
     if self.use_backwards_weights:
       self.backward_weights = torch.empty([self.output_size,self.input_size]).normal_(mean=0.0,std=0.05).to(self.device)
@@ -171,7 +172,7 @@ class FCLayer(object):
         out = torch.matmul(e * self.fn_deriv, self.weights.T)
       else:
         out = torch.matmul(e, self.weights.T)
-    return torch.clamp(out,-50,50)
+    return out
 
   def update_weights(self,e,update_weights=False,update_backwards_weights=True):
     self.fn_deriv = self.df(self.activations)
@@ -184,14 +185,14 @@ class FCLayer(object):
     else:
       dw = torch.matmul(self.inp.T, e * self.fn_deriv)
       if update_weights:
-        dW  = torch.clamp(dw*2,-50,50)
+        dW  = torch.clamp(dw*2,-self.weight_clamp_val,self.weight_clamp_val)
         self.weights += (self.learning_rate * (dW ))#- torch.mean(dW))) #- (torch.mean(torch.abs(dw)) * self.weights)#(self.weight_decay_coeff * self.weights)
         #if self.weight_normalization:
         #  self.weights = set_tensor(torch.ones_like(self.weights)) + (self.weights - torch.mean(self.weights)) / torch.var(self.weights)
     #print("TOTAL DW: ", torch.sum(dw))
     #update bias
     if self.use_bias:
-      self.bias += self.learning_rate * torch.clamp(e,-50,50)
+      self.bias += self.learning_rate * torch.clamp(e,-self.weight_clamp_val,self.weight_clamp_val)
     return dw
 
   def get_true_weight_grad(self):
@@ -201,7 +202,7 @@ class FCLayer(object):
     self.weights = nn.Parameter(self.weights)
 
 class PCNet(object):
-  def __init__(self, layers, n_inference_steps_train, inference_learning_rate, weight_learning_rate,use_error_weights=False,with_amortisation=True, fixed_predictions=True, dynamical_weight_update=False, dilation_factor=20,enforce_negative_errors=False,error_weight_std=0.05,update_error_weights=True,update_backwards_weights=True,device='cpu'):
+  def __init__(self, layers, n_inference_steps_train, inference_learning_rate, weight_learning_rate,use_error_weights=False,with_amortisation=True, fixed_predictions=True, dynamical_weight_update=False, dilation_factor=20,enforce_negative_errors=False,error_weight_std=0.05,update_error_weights=True,update_backwards_weights=True,weight_clamp_val=50,device='cpu'):
     self.layers= layers
     self.n_inference_steps_train = n_inference_steps_train
     self.inference_learning_rate = inference_learning_rate
@@ -215,6 +216,7 @@ class PCNet(object):
     self.error_weight_std = error_weight_std
     self.update_error_weights_flag = update_error_weights
     self.update_backwards_weights = update_backwards_weights
+    self.weight_clamp_val = weight_clamp_val
     self.L = len(self.layers)
     self.outs = [[] for i in  range(self.L+1)]
     self.prediction_errors = [[] for i in range(self.L+1)]
@@ -236,6 +238,7 @@ class PCNet(object):
     self.error_weights.append(set_tensor(torch.eye(self.layers[-1].output_size)))
     for l in self.layers:
       l.set_weight_parameters()
+      l.weight_clamp_val = weight_clamp_val
     if self.dynamical_weight_update:
       for l in self.layers:
         if hasattr(l, "learning_rate"):
@@ -506,6 +509,10 @@ if __name__ == '__main__':
     parser.add_argument("--weight_normalization",type=boolcheck,default=False)
     parser.add_argument("--use_bias",type=boolcheck,default=True)
     parser.add_argument("--activation_function",type=str,default="relu")
+    parser.add_argument("--l1_size",type=int, default=300)
+    parser.add_argument("--l2_size",type=int, default=100)
+    parser.add_argument("--l3_size",type=int, default=100)
+    parser.add_argument("weight_clamp_val",type=float, default=50)
     args = parser.parse_args()
     print("Args parsed")
     #create folders
@@ -522,10 +529,10 @@ if __name__ == '__main__':
     f,df = parse_activation_functions(args.activation_function)
     
 
-    l1 = FCLayer(784,300,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
-    l2 = FCLayer(300,100,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
-    l3 = FCLayer(100,100,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
-    l4 = FCLayer(100,10,args.batch_size,args.learning_rate,linear,linear_deriv,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
+    l1 = FCLayer(784,args.l1_size,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
+    l2 = FCLayer(args.l1_size,args.l2_size,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
+    l3 = FCLayer(args.l2_size,args.l3_size,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
+    l4 = FCLayer(args.l3_size,10,args.batch_size,args.learning_rate,linear,linear_deriv,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
     layers =[l1,l2,l3,l4]
-    net = PCNet(layers,args.n_inference_steps,args.inference_learning_rate,args.learning_rate,use_error_weights=args.use_error_weights,with_amortisation=args.with_amortisation, fixed_predictions=args.fixed_predictions,dynamical_weight_update=args.dynamical_weight_update,update_error_weights=args.update_error_weights,enforce_negative_errors=args.enforce_negative_errors,update_backwards_weights = args.update_backwards_weights,device=DEVICE)
+    net = PCNet(layers,args.n_inference_steps,args.inference_learning_rate,args.learning_rate,use_error_weights=args.use_error_weights,with_amortisation=args.with_amortisation, fixed_predictions=args.fixed_predictions,dynamical_weight_update=args.dynamical_weight_update,update_error_weights=args.update_error_weights,enforce_negative_errors=args.enforce_negative_errors,update_backwards_weights = args.update_backwards_weights,weight_clamp_val=args.weight_clamp_val,device=DEVICE)
     net.train(trainset[0:-2],testset[0:-2],args.logdir, args.savedir, args.N_epochs, args.n_inference_steps)
