@@ -512,7 +512,7 @@ if __name__ == '__main__':
     parser.add_argument("--l1_size",type=int, default=300)
     parser.add_argument("--l2_size",type=int, default=100)
     parser.add_argument("--l3_size",type=int, default=100)
-    parser.add_argument("weight_clamp_val",type=float, default=50)
+    parser.add_argument("--weight_clamp_val",type=float, default=50)
     args = parser.parse_args()
     print("Args parsed")
     #create folders
