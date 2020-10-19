@@ -16,7 +16,7 @@ activation_functions = ["relu", "tanh"]
 for (l1_size, l2_size, l3_size) in zip(l1_sizes, l2_sizes, l3_sizes):
     bbcall = bcall + " --l1_size " + str(l1_size) + " --l2_size " + str(l2_size) + " --l3_size " + str(l3_size)
     for act_fn in activation_functions:
-        condition = str(act_fn)
+        condition = str(act_fn) + "_" + str(l1_size) + "_" + str(l2_size) + "_" + str(l3_size) + "_"
         base_call = bbcall + " --activation_function " + str(act_fn)
         cond = condition + "_default"
         for s in range(seeds):

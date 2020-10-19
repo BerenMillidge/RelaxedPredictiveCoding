@@ -14,7 +14,7 @@ activation_functions = ["relu", "tanh"]
 for weight_clamp_val in weight_clamp_vals:
     bbcall = bcall + " --weight_clamp_val " + str(weight_clamp_val)
     for act_fn in activation_functions:
-        condition = str(act_fn)
+        condition = str(act_fn) + "_" + str(weight_clamp_val)
         base_call = bbcall + " --activation_function " + str(act_fn)
         cond = condition + "_default"
         for s in range(seeds):
