@@ -51,9 +51,9 @@ for weight_clamp_val in weight_clamp_vals:
 """
 weight_clamp_mus = [1,2,10,20]
 for weight_clamp_mu in weight_clamp_mus:
-    bbcall = bcall + " --weight_clamp_val " + str(weight_clamp_mu)
+    bbcall = bcall + " --weight_clamp_mu " + str(weight_clamp_mu)
     for act_fn in activation_functions:
-        condition = str(act_fn) + "_" + str(weight_clamp_mu)
+        condition = str(act_fn) + "_" + "clamp_mu_" +  str(weight_clamp_mu)
         base_call = bbcall + " --activation_function " + str(act_fn)
         cond = condition + "_default"
         for s in range(seeds):

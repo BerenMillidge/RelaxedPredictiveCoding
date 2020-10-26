@@ -51,7 +51,7 @@ for lr in lrs:
 inference_lrs = [0.1,0.05,0.01,0.005]
 activation_functions = ["relu", "tanh"]
 for inference_lr in inference_lrs:
-    bbcall = bcall + " --weight_clamp_val " + str(inference_lr)
+    bbcall = bcall + " --inference_lr " + str(inference_lr)
     for act_fn in activation_functions:
         condition = str(act_fn) + "_" + "inference_lr_" + str(inference_lr)
         base_call = bbcall + " --activation_function " + str(act_fn)
