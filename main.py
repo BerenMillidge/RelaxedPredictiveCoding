@@ -202,7 +202,7 @@ class FCLayer(object):
     self.weights = nn.Parameter(self.weights)
 
 class PCNet(object):
-  def __init__(self, layers, n_inference_steps_train, inference_learning_rate, weight_learning_rate,use_error_weights=False,with_amortisation=True, fixed_predictions=True, dynamical_weight_update=False, dilation_factor=20,enforce_negative_errors=False,error_weight_std=0.05,update_error_weights=True,update_backwards_weights=True,weight_clamp_val=50,device='cpu'):
+  def __init__(self, layers, n_inference_steps_train, inference_learning_rate, weight_learning_rate,use_error_weights=False,with_amortisation=True, fixed_predictions=True, dynamical_weight_update=False, dilation_factor=20,enforce_negative_errors=False,error_weight_std=0.05,update_error_weights=True,update_backwards_weights=True,weight_clamp_val=50,weight_clamp_mu=1000,device='cpu'):
     self.layers= layers
     self.n_inference_steps_train = n_inference_steps_train
     self.inference_learning_rate = inference_learning_rate
@@ -217,6 +217,7 @@ class PCNet(object):
     self.update_error_weights_flag = update_error_weights
     self.update_backwards_weights = update_backwards_weights
     self.weight_clamp_val = weight_clamp_val
+    self.weight_clamp_mu = weight_clamp_mu
     self.L = len(self.layers)
     self.outs = [[] for i in  range(self.L+1)]
     self.prediction_errors = [[] for i in range(self.L+1)]
@@ -359,7 +360,7 @@ class PCNet(object):
       for j in range(1,len(self.layers)):
         self.predictions[j] = self.layers[j].backward(self.prediction_errors[j+1])
         dx_l = self.prediction_errors[j] - self.predictions[j]
-        self.mus[j] -= self.inference_learning_rate * (2*dx_l)
+        self.mus[j] -= self.inference_learning_rate * torch.clamp(2*dx_l, -self.weight_clamp_mu, self.weight_clamp_mu)
         #self.prediction_errors[j] = self.mus[j] - self.outs[j]
         #print("pe: ", self.prediction_errors[j])
       for i in range(1,len(self.layers)+1):
@@ -512,7 +513,8 @@ if __name__ == '__main__':
     parser.add_argument("--l1_size",type=int, default=300)
     parser.add_argument("--l2_size",type=int, default=100)
     parser.add_argument("--l3_size",type=int, default=100)
-    parser.add_argument("--weight_clamp_val",type=float, default=50)
+    parser.add_argument("--weight_clamp_val",type=float, default=1000)
+    parser.add_argument("--weight_clamp_mu",type=float, default=1000)
     args = parser.parse_args()
     print("Args parsed")
     #create folders
@@ -534,5 +536,5 @@ if __name__ == '__main__':
     l3 = FCLayer(args.l2_size,args.l3_size,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
     l4 = FCLayer(args.l3_size,10,args.batch_size,args.learning_rate,linear,linear_deriv,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
     layers =[l1,l2,l3,l4]
-    net = PCNet(layers,args.n_inference_steps,args.inference_learning_rate,args.learning_rate,use_error_weights=args.use_error_weights,with_amortisation=args.with_amortisation, fixed_predictions=args.fixed_predictions,dynamical_weight_update=args.dynamical_weight_update,update_error_weights=args.update_error_weights,enforce_negative_errors=args.enforce_negative_errors,update_backwards_weights = args.update_backwards_weights,weight_clamp_val=args.weight_clamp_val,device=DEVICE)
+    net = PCNet(layers,args.n_inference_steps,args.inference_learning_rate,args.learning_rate,use_error_weights=args.use_error_weights,with_amortisation=args.with_amortisation, fixed_predictions=args.fixed_predictions,dynamical_weight_update=args.dynamical_weight_update,update_error_weights=args.update_error_weights,enforce_negative_errors=args.enforce_negative_errors,update_backwards_weights = args.update_backwards_weights,weight_clamp_val=args.weight_clamp_val,weight_clamp_mu = args.weight_clamp_mu,device=DEVICE)
     net.train(trainset[0:-2],testset[0:-2],args.logdir, args.savedir, args.N_epochs, args.n_inference_steps)
