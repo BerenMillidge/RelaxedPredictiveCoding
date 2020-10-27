@@ -23,7 +23,7 @@ def get_dataset(batch_size,norm_factor,dataset="mnist"):
     transform = transforms.Compose([transforms.ToTensor()])#, transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
     if dataset == "mnist":
         trainset = torchvision.datasets.MNIST(root='./mnist_data', train=True,
-                                                download=False, transform=transform)
+                                                download=True, transform=transform)
         print("trainset: ", trainset)
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                                 shuffle=True)
@@ -31,7 +31,7 @@ def get_dataset(batch_size,norm_factor,dataset="mnist"):
         trainset = list(iter(trainloader))
 
         testset = torchvision.datasets.MNIST(root='./mnist_data', train=False,
-                                            download=False, transform=transform)
+                                            download=True, transform=transform)
         testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                                 shuffle=True)
         testset = list(iter(testloader))
@@ -136,7 +136,7 @@ def accuracy(out, L):
 
 
 class FCLayer(object):
-  def __init__(self, input_size,output_size,batch_size, learning_rate,f,df,use_backwards_weights=True, use_backwards_nonlinearities=True,use_bias=False,weight_decay_coeff=0,weight_normalization=False,device="cpu"):
+  def __init__(self, input_size,output_size,batch_size, learning_rate,f,df,use_backwards_weights=True, use_backwards_nonlinearities=True,use_bias=False,weight_decay_coeff=0,weight_normalization=False,neural_forward = False,device="cpu"):
     self.input_size = input_size
     self.output_size = output_size
     self.batch_size = batch_size
@@ -150,6 +150,7 @@ class FCLayer(object):
     self.weight_normalization = weight_normalization
     self.weights = torch.empty([self.input_size,self.output_size]).normal_(mean=0.0,std=0.05).to(self.device)
     self.use_bias = use_bias
+    self.neural_forward = neural_forward
     self.weight_clamp_val = 50
     self.bias = torch.zeros([self.batch_size, self.output_size]).to(self.device)
     if self.use_backwards_weights:
@@ -157,42 +158,66 @@ class FCLayer(object):
 
   def forward(self,x):
     self.inp = x.clone()
-    self.activations = torch.matmul(self.inp, self.weights) 
-    return self.f(self.activations) + self.bias
+    if self.neural_forward == True:
+      return torch.matmul(self.f(self.inp), self.weights) + self.bias
+    else:
+      self.activations = torch.matmul(self.inp, self.weights) 
+      return self.f(self.activations) + self.bias
 
   def backward(self,e):
-    self.fn_deriv = self.df(self.activations)
-    if self.use_backwards_weights:
-      if self.use_backwards_nonlinearities:
-        out = torch.matmul(e * self.fn_deriv, self.backward_weights)
+    if self.neural_forward == True:
+      self.fn_deriv = self.df(self.inp)
+      if self.use_backwards_weights:
+        if self.use_backwards_nonlinearities:
+          out = torch.matmul(e, self.backward_weights) * self.fn_deriv
+        else:
+          out = torch.matmul(e, self.backward_weights)
       else:
-        out = torch.matmul(e, self.backward_weights)
+        if self.use_backwards_nonlinearities:
+          out = torch.matmul(e, self.weights.T) * self.fn_deriv
+        else:
+          out = torch.matmul(e, self.weights.T)
     else:
-      if self.use_backwards_nonlinearities:
-        out = torch.matmul(e * self.fn_deriv, self.weights.T)
+      self.fn_deriv = self.df(self.activations)
+      if self.use_backwards_weights:
+        if self.use_backwards_nonlinearities:
+          out = torch.matmul(e * self.fn_deriv, self.backward_weights)
+        else:
+          out = torch.matmul(e, self.backward_weights)
       else:
-        out = torch.matmul(e, self.weights.T)
+        if self.use_backwards_nonlinearities:
+          out = torch.matmul(e * self.fn_deriv, self.weights.T)
+        else:
+          out = torch.matmul(e, self.weights.T)
     return out
 
   def update_weights(self,e,update_weights=False,update_backwards_weights=True):
-    self.fn_deriv = self.df(self.activations)
-    if self.use_backwards_weights and update_backwards_weights:
-      delta = torch.matmul((e * self.fn_deriv).T,self.inp)
-      dw = torch.matmul(self.inp.T, e * self.fn_deriv)
+    if self.neural_forward:
+      print("e: ", e.shape)
+      print("f: ", self.f(self.inp).shape)
+      print(self.weights.shape)
+      dw = torch.matmul(self.f(self.inp).T ,e)
       if update_weights:
-        self.weights += self.learning_rate * torch.clamp(dw*2,-50,50)
-        self.backward_weights += self.learning_rate * torch.clamp(delta*2,-50,50)
+        self.weights += self.learning_rate * torch.clamp(dw,-self.weight_clamp_val, self.weight_clamp_val)
     else:
-      dw = torch.matmul(self.inp.T, e * self.fn_deriv)
-      if update_weights:
-        dW  = torch.clamp(dw*2,-self.weight_clamp_val,self.weight_clamp_val)
-        self.weights += (self.learning_rate * (dW ))#- torch.mean(dW))) #- (torch.mean(torch.abs(dw)) * self.weights)#(self.weight_decay_coeff * self.weights)
-        #if self.weight_normalization:
-        #  self.weights = set_tensor(torch.ones_like(self.weights)) + (self.weights - torch.mean(self.weights)) / torch.var(self.weights)
-    #print("TOTAL DW: ", torch.sum(dw))
-    #update bias
-    if self.use_bias:
-      self.bias += self.learning_rate * torch.clamp(e,-self.weight_clamp_val,self.weight_clamp_val)
+      self.fn_deriv = self.df(self.activations)
+      if self.use_backwards_weights and update_backwards_weights:
+        delta = torch.matmul((e * self.fn_deriv).T,self.inp)
+        dw = torch.matmul(self.inp.T, e * self.fn_deriv)
+        if update_weights:
+          self.weights += self.learning_rate * torch.clamp(dw*2,-self.weight_clamp_val,self.weight_clamp_val)
+          self.backward_weights += self.learning_rate * torch.clamp(delta*2,-self.weight_clamp_val,self.weight_clamp_val)
+      else:
+        dw = torch.matmul(self.inp.T, e * self.fn_deriv)
+        if update_weights:
+          dW  = torch.clamp(dw*2,-self.weight_clamp_val,self.weight_clamp_val)
+          self.weights += (self.learning_rate * (dW ))#- torch.mean(dW))) #- (torch.mean(torch.abs(dw)) * self.weights)#(self.weight_decay_coeff * self.weights)
+          #if self.weight_normalization:
+          #  self.weights = set_tensor(torch.ones_like(self.weights)) + (self.weights - torch.mean(self.weights)) / torch.var(self.weights)
+      #print("TOTAL DW: ", torch.sum(dw))
+      #update bias
+      if self.use_bias:
+        self.bias += self.learning_rate * torch.clamp(e,-self.weight_clamp_val,self.weight_clamp_val)
     return dw
 
   def get_true_weight_grad(self):
@@ -202,7 +227,7 @@ class FCLayer(object):
     self.weights = nn.Parameter(self.weights)
 
 class PCNet(object):
-  def __init__(self, layers, n_inference_steps_train, inference_learning_rate, weight_learning_rate,use_error_weights=False,with_amortisation=True, fixed_predictions=True, dynamical_weight_update=False, dilation_factor=20,enforce_negative_errors=False,error_weight_std=0.05,update_error_weights=True,update_backwards_weights=True,weight_clamp_val=50,weight_clamp_mu=1000,device='cpu'):
+  def __init__(self, layers, n_inference_steps_train, inference_learning_rate, weight_learning_rate,use_error_weights=False,with_amortisation=True, fixed_predictions=True, dynamical_weight_update=False, dilation_factor=20,enforce_negative_errors=False,error_weight_std=0.05,update_error_weights=True,update_backwards_weights=True,weight_clamp_val=50,weight_clamp_mu=1000,error_weights_clamp_val=50,device='cpu'):
     self.layers= layers
     self.n_inference_steps_train = n_inference_steps_train
     self.inference_learning_rate = inference_learning_rate
@@ -215,6 +240,7 @@ class PCNet(object):
     self.enforce_negative_errors = enforce_negative_errors
     self.error_weight_std = error_weight_std
     self.update_error_weights_flag = update_error_weights
+    self.error_weights_clamp_val = error_weights_clamp_val
     self.update_backwards_weights = update_backwards_weights
     self.weight_clamp_val = weight_clamp_val
     self.weight_clamp_mu = weight_clamp_mu
@@ -261,32 +287,13 @@ class PCNet(object):
     weight_diffs = []
     for (i,l) in enumerate(self.layers):
       dW = l.update_weights(self.prediction_errors[i+1],update_weights=True,update_backwards_weights = self.update_backwards_weights)
-      #true_dW = l.update_weights(self.predictions[i+1],update_weights=True)
-      #print(dW.shape)
-      #print("dW: ", dW*2)
-      #print("true grad: ", l.get_true_weight_grad())
-      #if print_weight_grads:
-      #  diff = torch.sum((dW -true_dW)**2)
-      #  weight_diffs.append(diff)
     return weight_diffs
 
   def update_error_weights(self):
-    #print("updating error weights")
     for (i,l) in enumerate(self.layers):
       if i != 0:
         error_connection_delta = torch.matmul(self.outs[i].T,self.prediction_errors[i]) 
-        #error_connection_delta = torch.matmul(self.mus[i].T, self.prediction_errors[i]) #WORKING
-        #print(error_connection_delta.shape)
-        #error_connection_delta = torch.matmul(self.v_pred_errs[i+1],self.v_layers[i].mu.T)
-        #self.error_weights[i] -=  self.weight_learning_rate * torch.clamp(error_connection_delta,-1,1) 
-        #old_error_weights = self.error_weights[i].clone()
-        #print("weight learning rate : ", self.weight_learning_rate)
-        self.error_weights[i] = self.error_weights[i].clone() - (self.weight_learning_rate * torch.clamp(error_connection_delta,-50,50))
-        #print(self.error_weights[i])
-        #print("error connection delta: ", error_connection_delta)
-        #print(self.error_weights[i])
-        #print("Update diff: ", torch.sum(torch.abs(old_error_weights - self.error_weights[i])).item())
-        #pass
+        self.error_weights[i] = self.error_weights[i].clone() - (self.weight_learning_rate * torch.clamp(error_connection_delta,-self.error_weights_clamp_val,self.error_weights_clamp_val))
 
   def forward(self,x):
     for i,l in enumerate(self.layers):
@@ -305,8 +312,6 @@ class PCNet(object):
     self.BP_backward(e_y)
 
   def cosine_similarity(self,pc_e, bp_e):
-    #pc_e = torch.randn_like(pc_e)
-    #bp_e = torch.randn_like(bp_e)
     cos = torch.bmm(-bp_e.unsqueeze(2).permute(1,2,0),pc_e.permute(1,0).unsqueeze(2)).reshape([len(bp_e.T)])
     pc_norm = torch.norm(pc_e, p=2,dim=0)
     bp_norm = torch.norm(bp_e,p=2,dim=0)
@@ -318,7 +323,6 @@ class PCNet(object):
     similarities = []
     for (i,l) in enumerate(self.layers):
       if i != 0:
-        #print("diff: ",torch.sum(torch.abs(self.prediction_errors[i] + self.e_ys[i])))
         similarities.append(self.cosine_similarity(self.prediction_errors[i],self.e_ys[i]))
     return similarities
 
@@ -388,19 +392,9 @@ class PCNet(object):
       self.mus[-1] = label.clone()
       self.infer_pc()
       weight_diffs = self.update_weights()
-      #print("IN LEARN PC UPDATE ERROR WEIGHTS" + str(self.use_error_weights) + " " + str(self.update_error_weights_flag))
       if self.use_error_weights and self.update_error_weights_flag:
-        #print("UPDATING ERROR WEIGHTS!!!!!")
         self.update_error_weights()
-      if backprop_pass_comparison:
-        #print("cosine similarities: ", self.cosine_similarities())
-        #print("DIFFS: ", [torch.mean(torch.abs(self.predictions[i] + self.e_ys[i])).item() for (i,l) in enumerate(self.layers) if i != 0])
-        #print("Weight norm: ", self.weight_norm())
-        pass
-      #print("outs: ", self.outs[-1][0,:])
-      #print("label: ", label[0,:])
       L = torch.sum(self.prediction_errors[-1]**2).item()
-      #print("Prediction errors: ", self.prediction_errors[-1][0,:])
       acc = accuracy(self.no_grad_forward(inp),label)
       return L,acc,weight_diffs
 
@@ -443,14 +437,7 @@ class PCNet(object):
       weight_diffs = self.update_weights()
       if self.use_error_weights and self.update_error_weights:
         self.update_error_weights()
-      if backprop_pass_comparison:
-        #print("cosine similarities: ", self.cosine_similarities())
-        #print("DIFFS: ", [torch.mean(torch.abs(self.predictions[i] + self.e_ys[i])).item() for (i,l) in enumerate(self.layers)])
-        pass
-      #print("outs: ", self.outs[-1][0,:])
-      #print("label: ", label[0,:])
       L = torch.sum(self.prediction_errors[-1]**2).item()
-      #print("Prediction errors: ", self.prediction_errors[-1][0,:])
       acc = accuracy(self.no_grad_forward(inp),label)
       return L,acc,weight_diffs
 
@@ -515,6 +502,8 @@ if __name__ == '__main__':
     parser.add_argument("--l3_size",type=int, default=100)
     parser.add_argument("--weight_clamp_val",type=float, default=1000)
     parser.add_argument("--weight_clamp_mu",type=float, default=1000)
+    parser.add_argument("--error_weight_clamp_val",type=float, default=1000)
+    parser.add_argument("--neural_forward",type=boolcheck,default=False)
     args = parser.parse_args()
     print("Args parsed")
     #create folders
@@ -531,10 +520,10 @@ if __name__ == '__main__':
     f,df = parse_activation_functions(args.activation_function)
     
 
-    l1 = FCLayer(784,args.l1_size,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
-    l2 = FCLayer(args.l1_size,args.l2_size,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
-    l3 = FCLayer(args.l2_size,args.l3_size,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
-    l4 = FCLayer(args.l3_size,10,args.batch_size,args.learning_rate,linear,linear_deriv,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,device=DEVICE)
+    l1 = FCLayer(784,args.l1_size,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,neural_forward = args.neural_forward,device=DEVICE)
+    l2 = FCLayer(args.l1_size,args.l2_size,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,neural_forward = args.neural_forward,device=DEVICE)
+    l3 = FCLayer(args.l2_size,args.l3_size,args.batch_size,args.learning_rate,f,df,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,neural_forward = args.neural_forward,device=DEVICE)
+    l4 = FCLayer(args.l3_size,10,args.batch_size,args.learning_rate,linear,linear_deriv,use_backwards_weights= args.use_backwards_weights, use_backwards_nonlinearities=args.use_backwards_nonlinearities,weight_decay_coeff=args.weight_decay_coeff,weight_normalization = args.weight_normalization,use_bias = args.use_bias,neural_forward = args.neural_forward,device=DEVICE)
     layers =[l1,l2,l3,l4]
     net = PCNet(layers,args.n_inference_steps,args.inference_learning_rate,args.learning_rate,use_error_weights=args.use_error_weights,with_amortisation=args.with_amortisation, fixed_predictions=args.fixed_predictions,dynamical_weight_update=args.dynamical_weight_update,update_error_weights=args.update_error_weights,enforce_negative_errors=args.enforce_negative_errors,update_backwards_weights = args.update_backwards_weights,weight_clamp_val=args.weight_clamp_val,weight_clamp_mu = args.weight_clamp_mu,device=DEVICE)
     net.train(trainset[0:-2],testset[0:-2],args.logdir, args.savedir, args.N_epochs, args.n_inference_steps)
