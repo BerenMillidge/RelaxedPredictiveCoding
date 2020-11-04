@@ -9,7 +9,7 @@ output_file = open(generated_name, "w")
 seeds = 5
 act_fns = ["tanh","relu"]
 for act_fn in act_fns:
-    base_call = bcall + " --act_fn " + str(act_fn)
+    base_call = bcall + " --activation_function " + str(act_fn)
     cond = act_fn + "_"
     condition=cond + "default"
     for s in range(seeds):
